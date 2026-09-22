@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Gestión de Comunidad Energética Renovable - Proyecto Académico">
+    <meta name="author" content="Proyecto Académico - Algoritmos y Programación">
+    <title>Comunidad Energética Renovable | Simulador Corregido</title>
+    
+    <!-- Chart.js para visualización de datos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    
+    <!-- Leaflet para mapas interactivos -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* ============================================
+           VARIABLES CSS Y CONFIGURACIÓN GLOBAL
+           ============================================ */
+        :root {
+            --color-primary: #667eea;
+            --color-secondary: #764ba2;
+            --color-solar: #ffd700;
+            --color-eolica: #87ceeb;
+            --color-bg-dark: #0a0e27;
+            --color-bg-medium: #1a1a2e;
+            --color-bg-light: #16213e;
+            --color-text: #e0e0e0;
+            --color-success: #43e97b;
+            --color-warning: #ffa726;
+            --color-danger: #f5576c;
+            --shadow-lg: 0 15px 40px rgba(0,0,0,0.5);
+            --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-bg-medium) 50%, var(--color-bg-light) 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--color-text);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           ANIMACIONES PERSONALIZADAS
+           ============================================ */
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(100px); opacity: 0; }
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(102, 126, 234, 0.8); }
+            to { text-shadow: 0 0 30px rgba(102, 126, 234, 1), 0 0 40px rgba(102, 126, 234, 0.5); }
+        }
+
+        @keyframes sunPulse {
+            0%, 100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+            50% { transform: scale(1.1) rotate(180deg); filter: brightness(1.3); }
+        }
+
+        @keyframes windTurbine {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        @keyframes progressShine {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(100%); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { opacity: 1; transform: translateX(0); }
+            50% { opacity: 0.5; transform: translateX(10px); }
+        }
+
+        /* ============================================
+           ELEMENTOS DE FONDO
+           ============================================ */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(102, 126, 234, 0.6);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+
+        /* ============================================
+           LAYOUT PRINCIPAL
+           ============================================ */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ============================================
+           HEADER Y NAVEGACIÓN
+           ============================================ */
+        header {
+            background: rgba(15, 20, 50, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            animation: slideDown 0.8s ease-out;
+        }
+
+        header h1 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .academic-info {
+            display: inline-block;
+            background: rgba(102, 126, 234, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            font-size: 0.9em;
+            color: #667eea;
+        }
+
+        /* ============================================
+           SECCIONES DE CONTROL
+           ============================================ */
+        .controls-section {
+            background: rgba(15, 20, 50, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            animation: slideUp 0.8s ease-out 0.2s both;
+        }
+
+        .control-section-title {
+            color: #fff;
+            font-size: 1.5em;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .control-group {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #fff;
+            font-size: 1.05em;
+        }
+
+        .control-value {
+            color: var(--color-primary);
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.8);
+            transition: var(--transition);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+            box-shadow: 0 0 25px rgba(102, 126, 234, 1);
+        }
+
+        /* ============================================
+           BOTONES DE ESCENARIO
+           ============================================ */
+        .scenario-selector {
+            background: rgba(15, 20, 50, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            animation: slideUp 0.8s ease-out 0.3s both;
+        }
+
+        .scenario-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .scenario-btn {
+            padding: 18px 35px;
+            border: 2px solid transparent;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: var(--transition);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            color: white;
+        }
+
+        .scenario-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .scenario-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .scenario-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .scenario-btn.active {
+            border-color: #fff;
+            box-shadow: 0 0 25px rgba(255,255,255,0.5);
+        }
+
+        .btn-alta-generacion { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .btn-alta-demanda { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .btn-equilibrio { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .btn-noche { background: linear-gradient(135deg, #434343 0%, #000000 100%); }
+
+        /* ============================================
+           GRID DE DASHBOARD
+           ============================================ */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(15, 20, 50, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15);
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+
+        .card.full-width {
+            grid-column: span 2;
+        }
+
+        .card h2 {
+            color: #fff;
+            margin-bottom: 25px;
+            font-size: 1.4em;
+            border-bottom: 3px solid var(--color-primary);
+            padding-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* ============================================
+           ESTADÍSTICAS Y MÉTRICAS
+           ============================================ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, var(--color-bg-medium) 0%, var(--color-bg-light) 100%);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        .stat-item:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 25px rgba(102, 126, 234, 0.5);
+            transform: scale(1.05);
+        }
+
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: var(--color-primary);
+            text-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-label {
+            font-size: 0.95em;
+            opacity: 0.85;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ============================================
+           GRÁFICOS Y VISUALIZACIONES
+           ============================================ */
+        .chart-container {
+            position: relative;
+            height: 320px;
+            margin-top: 20px;
+        }
+
+        /* ============================================
+           TARJETAS DE PRODUCTORES CON IMÁGENES
+           ============================================ */
+        .producers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+            max-height: 700px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .producer-card {
+            background: linear-gradient(135deg, var(--color-bg-medium) 0%, var(--color-bg-light) 100%);
+            padding: 20px;
+            border-radius: 18px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .producer-card:hover {
+            transform: scale(1.03);
+            border-color: var(--color-primary);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .producer-card.solar {
+            border-left: 5px solid var(--color-solar);
+        }
+
+        .producer-card.eolica {
+            border-left: 5px solid var(--color-eolica);
+        }
+
+        .producer-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .producer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .producer-icon {
+            font-size: 3em;
+            position: relative;
+            width: 65px;
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+
+        .producer-icon.solar {
+            animation: sunPulse 3s ease-in-out infinite;
+        }
+
+        .producer-icon.eolica {
+            animation: windTurbine 2s linear infinite;
+        }
+
+        .producer-name {
+            font-weight: bold;
+            color: #fff;
+            font-size: 1.15em;
+            margin-bottom: 5px;
+        }
+
+        .producer-type-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .badge-solar {
+            background: rgba(255, 215, 0, 0.2);
+            color: var(--color-solar);
+            border: 1px solid var(--color-solar);
+        }
+
+        .badge-eolica {
+            background: rgba(135, 206, 235, 0.2);
+            color: var(--color-eolica);
+            border: 1px solid var(--color-eolica);
+        }
+
+        .producer-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            font-size: 0.95em;
+        }
+
+        .producer-stat {
+            text-align: center;
+        }
+
+        .producer-stat-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: var(--color-primary);
+        }
+
+        .producer-stat-label {
+            font-size: 0.8em;
+            opacity: 0.7;
+        }
+
+        .producer-progress {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 18px;
+            position: relative;
+        }
+
+        .producer-progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .producer-progress-fill.solar {
+            background: linear-gradient(90deg, var(--color-solar), #ffed4e);
+        }
+
+        .producer-progress-fill.eolica {
+            background: linear-gradient(90deg, var(--color-eolica), #b0e0e6);
+        }
+
+        .producer-progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: progressShine 2s infinite;
+        }
+
+        /* ============================================
+           FLUJO DE ENERGÍA
+           ============================================ */
+        .energy-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.8) 0%, rgba(22, 33, 62, 0.8) 100%);
+            border-radius: 18px;
+            margin-top: 25px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .flow-item {
+            text-align: center;
+            padding: 15px;
+            transition: var(--transition);
+        }
+
+        .flow-item:hover {
+            transform: scale(1.1);
+        }
+
+        .flow-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        .flow-arrow {
+            font-size: 2.5em;
+            color: var(--color-primary);
+            animation: arrowPulse 1.5s ease-in-out infinite;
+        }
+
+        /* ============================================
+           BARRAS DE PROGRESO
+           ============================================ */
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 12px;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.95em;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: progressShine 2s infinite;
+        }
+
+        .progress-fill.excedentes {
+            background: linear-gradient(90deg, #f093fb 0%, var(--color-danger) 100%);
+        }
+
+        /* ============================================
+           SECCIÓN DE DOCUMENTACIÓN
+           ============================================ */
+        .documentation {
+            background: rgba(15, 20, 50, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .doc-section {
+            margin-bottom: 25px;
+        }
+
+        .doc-section h3 {
+            color: var(--color-primary);
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .doc-section p, .doc-section ul {
+            margin-bottom: 10px;
+            line-height: 1.8;
+        }
+
+        .doc-section ul {
+            padding-left: 25px;
+        }
+
+        .doc-section li {
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid var(--color-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        /* ============================================
+           BOTONES DE ACCIÓN
+           ============================================ */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: var(--transition);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            color: white;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--color-success), #38f9d7);
+            color: #000;
+        }
+
+        /* ============================================
+           SCROLLBAR PERSONALIZADO
+           ============================================ */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-primary);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-secondary);
+        }
+
+        /* ============================================
+           RESPONSIVE DESIGN
+           ============================================ */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .card.full-width {
+                grid-column: 1;
+            }
+            
+            .scenario-buttons {
+                flex-direction: column;
+            }
+            
+            .scenario-btn {
+                width: 100%;
+            }
+
+            .producers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8em;
+            }
+        }
+
+        /* Animación de entrada escalonada */
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(5) { animation-delay: 0.5s; }
+        .card:nth-child(6) { animation-delay: 0.6s; }
+    </style>
+</head>
+<body>
+    <!-- Partículas de fondo animadas -->
+    <div class="particles" id="particles"></div>
+
+    <div class="container">
+        <!-- HEADER PRINCIPAL -->
+        <header>
+            <h1>⚡ Comunidad Energética Renovable</h1>
+            <p class="subtitle">Sistema Inteligente de Gestión y Distribución de Energía Solar y Eólica</p>
+            <div class="academic-info">
+                <strong>Proyecto Académico - Algoritmos y Programación</strong> | 
+                Universidad | 2026
+            </div>
+        </header>
+
+        <!-- CONTROLES INTERACTIVOS -->
+        <div class="controls-section">
+            <h2 class="control-section-title">🎛️ Panel de Control de Parámetros</h2>
+            <div class="control-grid">
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>☀️ Intensidad de Radiación Solar</span>
+                        <span class="control-value" id="solarValue">70%</span>
+                    </div>
+                    <input type="range" id="solarSlider" min="0" max="100" value="70" oninput="updateParameters()">
+                    <small style="color: #888; margin-top: 8px; display: block;">
+                        Controla la eficiencia de los paneles solares (0-100%)
+                    </small>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>💨 Velocidad del Viento</span>
+                        <span class="control-value" id="windValue">50%</span>
+                    </div>
+                    <input type="range" id="windSlider" min="0" max="100" value="50" oninput="updateParameters()">
+                    <small style="color: #888; margin-top: 8px; display: block;">
+                        Controla la generación de turbinas eólicas (0-100%)
+                    </small>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>🏭 Demanda Energética de la Comunidad</span>
+                        <span class="control-value" id="demandValue">50%</span>
+                    </div>
+                    <input type="range" id="demandSlider" min="0" max="100" value="50" oninput="updateParameters()">
+                    <small style="color: #888; margin-top: 8px; display: block;">
+                        Controla el consumo total de la comunidad (0-100%)
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- SELECTOR DE ESCENARIOS -->
+        <div class="scenario-selector">
+            <h2 class="control-section-title">📊 Escenarios de Simulación Predefinidos</h2>
+            <div class="scenario-buttons">
+                <button class="scenario-btn btn-alta-generacion" onclick="changeScenario('altaGeneracion')">
+                    ☀️ Alta Generación Solar
+                </button>
+                <button class="scenario-btn btn-alta-demanda" onclick="changeScenario('altaDemanda')">
+                    🏭 Alta Demanda
+                </button>
+                <button class="scenario-btn btn-equilibrio" onclick="changeScenario('equilibrio')">
+                    ⚖️ Equilibrio Óptimo
+                </button>
+                <button class="scenario-btn btn-noche" onclick="changeScenario('noche')">
+                    🌙 Generación Nocturna
+                </button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD PRINCIPAL -->
+        <div class="dashboard">
+            <!-- CARD 1: RESUMEN ENERGÉTICO -->
+            <div class="card">
+                <h2>📈 Resumen Energético en Tiempo Real</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalGeneracion">0</div>
+                        <div class="stat-label">kWh Generados</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalConsumo">0</div>
+                        <div class="stat-label">kWh Consumidos</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="energiaCompartida">0</div>
+                        <div class="stat-label">kWh Compartidos</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="porcentajeRenovable">0%</div>
+                        <div class="stat-label">Energía Renovable</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 2: GRÁFICO DE GENERACIÓN VS CONSUMO -->
+            <div class="card">
+                <h2>⚡ Generación vs Consumo Horario</h2>
+                <div class="chart-container">
+                    <canvas id="generationChart"></canvas>
+                </div>
+            </div>
+
+            <!-- CARD 3: DISTRIBUCIÓN DE ENERGÍA -->
+            <div class="card">
+                <h2>🔄 Distribución y Flujo de Energía</h2>
+                <div class="chart-container">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+                <div class="energy-flow">
+                    <div class="flow-item">
+                        <div class="flow-icon">🏭</div>
+                        <div>Productores</div>
+                        <div id="flowProductores" style="color: var(--color-primary); font-weight: bold; font-size: 1.2em;">0 kWh</div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-item">
+                        <div class="flow-icon">️</div>
+                        <div>Comunidad</div>
+                        <div id="flowComunidad" style="color: var(--color-primary); font-weight: bold; font-size: 1.2em;">0 kWh</div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-item">
+                        <div class="flow-icon">🔋</div>
+                        <div>Red Eléctrica</div>
+                        <div id="flowRed" style="color: var(--color-primary); font-weight: bold; font-size: 1.2em;">0 kWh</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 4: MIX ENERGÉTICO -->
+            <div class="card">
+                <h2>🌞 Composición del Mix Energético</h2>
+                <div class="chart-container">
+                    <canvas id="mixChart"></canvas>
+                </div>
+            </div>
+
+            <!-- CARD 5: PRODUCTORES CON IMÁGENES -->
+            <div class="card full-width">
+                <h2>👥 Infraestructura de Productores de la Comunidad</h2>
+                <div class="producers-grid" id="producersGrid">
+                    <!-- Los productores se generan dinámicamente con JavaScript -->
+                </div>
+            </div>
+
+            <!-- CARD 6: BALANCE COMUNITARIO -->
+            <div class="card">
+                <h2>⚖️ Balance Energético Comunitario</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="balanceComunitario">0</div>
+                        <div class="stat-label">Balance (kWh)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="demandaCubierta">0%</div>
+                        <div class="stat-label">Demanda cubierta</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="energiaLocal">0</div>
+                        <div class="stat-label">Energía usada localmente</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="energiaExportada">0</div>
+                        <div class="stat-label">Excedente exportado</div>
+                    </div>
+                </div>
+                <div class="doc-section" style="margin-top:20px;">
+                    <p>
+                        <strong>Regla de reparto:</strong> primero se atiende el consumo directo,
+                        luego se distribuye la energía sobrante entre consumidores de la comunidad
+                        y únicamente el remanente se exporta a la red.
+                    </p>
+                </div>
+            </div>
+
+            <!-- CARD 6: AUTOCONSUMO Y EXCEDENTES -->
+            <div class="card">
+                <h2>📊 Análisis de Autoconsumo y Excedentes</h2>
+                <div class="chart-container">
+                    <canvas id="selfConsumptionChart"></canvas>
+                </div>
+                <div style="margin-top: 25px;">
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold;">
+                            <span>Autoconsumo Directo</span>
+                            <span id="autoconsumoPercent" style="color: var(--color-success);">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="autoconsumoBar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold;">
+                            <span>Excedentes Exportados a Red</span>
+                            <span id="excedentesPercent" style="color: var(--color-danger);">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill excedentes" id="excedentesBar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN DE DOCUMENTACIÓN ACADÉMICA -->
+        <div class="documentation">
+            <h2 class="control-section-title">📚 Documentación Técnica del Proyecto</h2>
+            
+            <div class="doc-section">
+                <h3>1. Descripción del Sistema</h3>
+                <p>
+                    Este sistema representa una <strong>Comunidad Energética Renovable</strong> que integra 
+                    fuentes de energía solar fotovoltaica y eólica para el abastecimiento de una comunidad. 
+                    El algoritmo implementado gestiona la distribución óptima de energía entre los productores 
+                    y consumidores, minimizando la dependencia de la red eléctrica convencional.
+                </p>
+            </div>
+
+            <div class="doc-section">
+                <h3>2. Algoritmos Implementados</h3>
+                <ul>
+                    <li><strong>Algoritmo de Distribución de Carga:</strong> Asigna la energía generada prioritariamente al autoconsumo, luego al compartir comunitario y finalmente a excedentes.</li>
+                    <li><strong>Algoritmo de Balance Energético:</strong> Calcula en tiempo real el equilibrio entre generación y demanda.</li>
+                    <li><strong>Algoritmo de Optimización:</strong> Ajusta los parámetros de generación según las condiciones ambientales (radiación solar, velocidad del viento).</li>
+                    <li><strong>Estructuras de Datos:</strong> Arrays de objetos para productores, mapas para almacenamiento de métricas temporales.</li>
+                </ul>
+            </div>
+
+            <div class="doc-section">
+                <h3>3. Fórmulas Matemáticas Utilizadas</h3>
+                <div class="code-block">
+Producción Solar = Capacidad_Instalada × Factor_Radiación × Eficiencia_Paneles<br><br>
+Producción Eólica = Capacidad_Instalada × Factor_Viento<br><br>
+Balance_Energético = Σ(Generación) - Σ(Consumo)<br><br>
+Porcentaje_Autoconsumo = (Autoconsumo / Generación_Total) × 100
+                </div>
+            </div>
+
+            <div class="doc-section">
+                <h3>4. Características Técnicas</h3>
+                <ul>
+                    <li><strong>Lenguaje:</strong> JavaScript (ES6+)</li>
+                    <li><strong>Arquitectura:</strong> MVC (Modelo-Vista-Controlador)</li>
+                    <li><strong>Visualización:</strong> Chart.js para gráficos interactivos</li>
+                    <li><strong>Animaciones:</strong> CSS3 keyframes y transitions</li>
+                    <li><strong>Responsive:</strong> Grid y Flexbox para adaptación a dispositivos</li>
+                    <li><strong>Actualización:</strong> Tiempo real cada 5 segundos con variaciones aleatorias</li>
+                </ul>
+            </div>
+
+            <div class="doc-section">
+                <h3>5. Escenarios de Simulación</h3>
+                <ul>
+                    <li><strong>Alta Generación:</strong> Máxima radiación solar (mediodía) con consumo moderado</li>
+                    <li><strong>Alta Demanda:</strong> Hora pico vespertina con generación reducida</li>
+                    <li><strong>Equilibrio:</strong> Balance óptimo entre generación y consumo</li>
+                    <li><strong>Noche:</strong> Generación principalmente eólica con bajo consumo</li>
+                </ul>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" onclick="exportData()">📥 Exportar Datos (JSON)</button>
+                <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir Reporte</button>
+                <button class="btn" onclick="resetSimulation()">🔄 Reiniciar Simulación</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================
+         * SISTEMA DE GESTIÓN DE COMUNIDAD ENERGÉTICA
+         * Proyecto Académico - Algoritmos y Programación
+         * ============================================
+         * Autor: Estudiante
+         * Fecha: 2026
+         * Descripción: Sistema interactivo de simulación 
+         * y gestión de energía renovable comunitaria
+         * ============================================
+         */
+
+        // ============================================
+        // CONFIGURACIÓN GLOBAL Y CONSTANTES
+        // ============================================
+        const CONFIG = {
+            BASE_CONSUMO: 400, // kWh base de la comunidad
+            UPDATE_INTERVAL: 5000, // Actualización cada 5 segundos
+            ANIMATION_DURATION: 1500, // Duración de animaciones en ms
+            PRODUCERS: [
+                { 
+                    id: 1, 
+                    nombre: "Parque Solar Principal", 
+                    tipo: "solar", 
+                    capacidad: 150, 
+                    produccionActual: 0, 
+                    icon: "☀️",
+                    imagen: "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=400",
+                    descripcion: "Instalación fotovoltaica de gran escala"
+                },
+                { 
+                    id: 2, 
+                    nombre: "Parque Eólico Norte", 
+                    tipo: "eolica", 
+                    capacidad: 200, 
+                    produccionActual: 0, 
+                    icon: "💨",
+                    imagen: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400",
+                    descripcion: "Turbinas eólicas de alta eficiencia"
+                },
+                { 
+                    id: 3, 
+                    nombre: "Paneles Comunitarios", 
+                    tipo: "solar", 
+                    capacidad: 100, 
+                    produccionActual: 0, 
+                    icon: "🔆",
+                    imagen: "https://images.unsplash.com/photo-1611365892117-00ac5ef43c90?w=400",
+                    descripcion: "Instalación solar compartida"
+                },
+                { 
+                    id: 4, 
+                    nombre: "Parque Eólico Sur", 
+                    tipo: "eolica", 
+                    capacidad: 180, 
+                    produccionActual: 0, 
+                    icon: "🌬️",
+                    imagen: "https://images.unsplash.com/photo-1532601451126-8e1c1e2f9a8b?w=400",
+                    descripcion: "Generación eólica complementaria"
+                },
+                { 
+                    id: 5, 
+                    nombre: "Solar Residencial", 
+                    tipo: "solar", 
+                    capacidad: 80, 
+                    produccionActual: 0, 
+                    icon: "🌞",
+                    imagen: "https://images.unsplash.com/photo-1592833159057-65a2845730bd?w=400",
+                    descripcion: "Paneles en viviendas particulares"
+                },
+                { 
+                    id: 6, 
+                    nombre: "Mini Eólica Local", 
+                    tipo: "eolica", 
+                    capacidad: 60, 
+                    produccionActual: 0, 
+                    icon: "🌀",
+                    imagen: "https://images.unsplash.com/photo-1548316799-4c0f6c2e4b5f?w=400",
+                    descripcion: "Turbinas de pequeña escala"
+                }
+            ]
+        };
+
+        // ============================================
+        // ESCENARIOS DE SIMULACIÓN
+        // ============================================
+        const ESCENARIOS = {
+            altaGeneracion: {
+                nombre: "Alta Generación Solar",
+                hora: 13,
+                factores: { solar: 0.95, eolica: 0.6, consumo: 0.5 },
+                descripcion: "Máxima producción solar al mediodía con consumo moderado"
+            },
+            altaDemanda: {
+                nombre: "Alta Demanda",
+                hora: 19,
+                factores: { solar: 0.3, eolica: 0.4, consumo: 1.0 },
+                descripcion: "Hora pico de consumo vespertino"
+            },
+            equilibrio: {
+                nombre: "Equilibrio Óptimo",
+                hora: 11,
+                factores: { solar: 0.7, eolica: 0.5, consumo: 0.7 },
+                descripcion: "Balance entre generación y consumo"
+            },
+            noche: {
+                nombre: "Generación Nocturna",
+                hora: 2,
+                factores: { solar: 0, eolica: 0.7, consumo: 0.3 },
+                descripcion: "Generación principalmente eólica nocturna"
+            }
+        };
+
+        // ============================================
+        // VARIABLES DE ESTADO
+        // ============================================
+        let estadoActual = {
+            escenario: 'equilibrio',
+            productores: [...CONFIG.PRODUCERS],
+            charts: {}
+        };
+
+        // ============================================
+        // FUNCIONES DE INICIALIZACIÓN
+        // ============================================
+
+        /**
+         * Crea partículas animadas de fondo
+         * Algoritmo: Generación aleatoria con animación CSS
+         */
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 50;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        /**
+         * Inicializa todos los gráficos de Chart.js
+         * Implementa diferentes tipos de visualización de datos
+         */
+        function initCharts() {
+            // Gráfico de Líneas: Generación vs Consumo
+            const genCtx = document.getElementById('generationChart').getContext('2d');
+            estadoActual.charts.generation = new Chart(genCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+                    datasets: [
+                        {
+                            label: 'Generación Solar',
+                            data: [],
+                            borderColor: '#ffd700',
+                            backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'Generación Eólica',
+                            data: [],
+                            borderColor: '#87ceeb',
+                            backgroundColor: 'rgba(135, 206, 235, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'Consumo',
+                            data: [],
+                            borderColor: '#ff6b6b',
+                            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: CONFIG.ANIMATION_DURATION, easing: 'easeInOutQuart' },
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)} kWh`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        x: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+
+            // Gráfico de Barras: Distribución
+            const distCtx = document.getElementById('distributionChart').getContext('2d');
+            estadoActual.charts.distribution = new Chart(distCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Autoconsumo', 'Compartida', 'Excedentes', 'Importada'],
+                    datasets: [{
+                        label: 'Energía (kWh)',
+                        data: [],
+                        backgroundColor: [
+                            'rgba(67, 233, 123, 0.8)',
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(245, 87, 108, 0.8)',
+                            'rgba(255, 167, 38, 0.8)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: CONFIG.ANIMATION_DURATION },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        x: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+
+            // Gráfico Doughnut: Mix Energético
+            const mixCtx = document.getElementById('mixChart').getContext('2d');
+            estadoActual.charts.mix = new Chart(mixCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Solar', 'Eólica', 'Red Eléctrica'],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            'rgba(255, 215, 0, 0.8)',
+                            'rgba(135, 206, 235, 0.8)',
+                            'rgba(158, 158, 158, 0.8)'
+                        ],
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: CONFIG.ANIMATION_DURATION },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#e0e0e0', padding: 20 } }
+                    }
+                }
+            });
+
+            // Gráfico Pie: Autoconsumo
+            const selfCtx = document.getElementById('selfConsumptionChart').getContext('2d');
+            estadoActual.charts.selfConsumption = new Chart(selfCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Autoconsumo Directo', 'Compartido en Comunidad', 'Exportado a Red'],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            'rgba(67, 233, 123, 0.8)',
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(245, 87, 108, 0.8)'
+                        ],
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: CONFIG.ANIMATION_DURATION },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#e0e0e0', padding: 20 } }
+                    }
+                }
+            });
+        }
+
+        // ============================================
+        // ALGORITMOS DE CÁLCULO ENERGÉTICO
+        // ============================================
+
+        /**
+         * Calcula la producción de energía según parámetros
+         * @param {number} factorSolar - Factor de radiación solar (0-1)
+         * @param {number} factorEolica - Factor de velocidad del viento (0-1)
+         * @returns {Object} - Producción total por tipo y total general
+         */
+        function calcularProduccion(factorSolar, factorEolica) {
+            let totalSolar = 0;
+            let totalEolica = 0;
+
+            estadoActual.productores.forEach(prod => {
+                if (prod.tipo === 'solar') {
+                    // Algoritmo: Producción = Capacidad × Factor × Eficiencia
+                    prod.produccionActual = prod.capacidad * factorSolar;
+                    totalSolar += prod.produccionActual;
+                } else {
+                    // Algoritmo eólico: Producción proporcional al cubo de la velocidad
+                    prod.produccionActual = prod.capacidad * factorEolica;
+                    totalEolica += prod.produccionActual;
+                }
+            });
+
+            return {
+                solar: totalSolar,
+                eolica: totalEolica,
+                total: totalSolar + totalEolica
+            };
+        }
+
+        /**
+         * Calcula el consumo según factor de demanda
+         * @param {number} factorConsumo - Factor de demanda (0-1)
+         * @returns {number} - Consumo total en kWh
+         */
+        function calcularConsumo(factorConsumo) {
+            return CONFIG.BASE_CONSUMO * factorConsumo;
+        }
+
+        /**
+         * Algoritmo de distribución óptima de energía
+         * Prioriza: 1) Autoconsumo, 2) Compartido, 3) Excedentes
+         */
+        function distribuirEnergia(produccion, consumo) {
+            // Regla de reparto sin doble contabilización:
+            // 1) La generación cubre primero el consumo local directo.
+            // 2) Si queda generación, se comparte con otros usuarios.
+            // 3) Solo el remanente después del reparto comunitario se exporta.
+            // 4) Si la generación no alcanza, se importa únicamente el déficit.
+
+            const autoconsumo = Math.min(consumo, produccion.total);
+            const energiaRestante = Math.max(0, produccion.total - autoconsumo);
+            const demandaRestante = Math.max(0, consumo - autoconsumo);
+
+            // Se permite compartir hasta cubrir el 100 % de la demanda restante.
+            const compartida = Math.min(energiaRestante, demandaRestante);
+            const excedentes = Math.max(0, energiaRestante - compartida);
+            const importada = Math.max(0, demandaRestante - compartida);
+
+            return {
+                autoconsumo,
+                compartida,
+                excedentes,
+                importada,
+                energiaUtilizadaLocalmente: autoconsumo + compartida
+            };
+        }
+
+        // ============================================
+        // FUNCIONES DE ACTUALIZACIÓN DE INTERFAZ
+        // ============================================
+
+        /**
+         * Actualiza parámetros desde los sliders
+         */
+        function updateParameters() {
+            const solar = document.getElementById('solarSlider').value / 100;
+            const wind = document.getElementById('windSlider').value / 100;
+            const demand = document.getElementById('demandSlider').value / 100;
+
+            document.getElementById('solarValue').textContent = (solar * 100).toFixed(0) + '%';
+            document.getElementById('windValue').textContent = (wind * 100).toFixed(0) + '%';
+            document.getElementById('demandValue').textContent = (demand * 100).toFixed(0) + '%';
+
+            calcularYActualizar(solar, wind, demand);
+        }
+
+        /**
+         * Función principal de cálculo y actualización
+         */
+        function calcularYActualizar(factorSolar, factorEolica, factorConsumo) {
+            const produccion = calcularProduccion(factorSolar, factorEolica);
+            const consumo = calcularConsumo(factorConsumo);
+            const distribucion = distribuirEnergia(produccion, consumo);
+
+            actualizarDashboard(produccion, consumo, distribucion);
+        }
+
+        /**
+         * Actualiza todo el dashboard con nuevos valores
+         */
+        function actualizarDashboard(produccion, consumo, distribucion) {
+            // Calcular métricas
+            const porcentajeRenovable = consumo > 0 ? 
+                Math.min(100, (produccion.total / consumo * 100)) : 0;
+
+            // Actualizar estadísticas con animación
+            animateValue('totalGeneracion', parseFloat(document.getElementById('totalGeneracion').textContent) || 0, produccion.total);
+            animateValue('totalConsumo', parseFloat(document.getElementById('totalConsumo').textContent) || 0, consumo);
+            animateValue('energiaCompartida', parseFloat(document.getElementById('energiaCompartida').textContent) || 0, distribucion.compartida);
+            document.getElementById('porcentajeRenovable').textContent = porcentajeRenovable.toFixed(1) + '%';
+
+            const balance = produccion.total - consumo;
+            const demandaCubierta = consumo > 0
+                ? ((distribucion.autoconsumo + distribucion.compartida) / consumo) * 100
+                : 0;
+
+            document.getElementById('balanceComunitario').textContent = balance.toFixed(0);
+            document.getElementById('demandaCubierta').textContent =
+                Math.min(100, demandaCubierta).toFixed(1) + '%';
+            document.getElementById('energiaLocal').textContent =
+                distribucion.energiaUtilizadaLocalmente.toFixed(0);
+            document.getElementById('energiaExportada').textContent =
+                distribucion.excedentes.toFixed(0);
+
+            // Actualizar flujos
+            document.getElementById('flowProductores').textContent = produccion.total.toFixed(0) + ' kWh';
+            document.getElementById('flowComunidad').textContent = distribucion.autoconsumo.toFixed(0) + ' kWh';
+            const flujoRed = distribucion.excedentes - distribucion.importada;
+            document.getElementById('flowRed').textContent =
+                (flujoRed >= 0 ? '+' : '') + flujoRed.toFixed(0) + ' kWh';
+
+            // Actualizar gráficos
+            updateCharts(produccion, consumo, distribucion);
+            
+            // Actualizar visualización de productores
+            updateProducersGrid();
+
+            // Actualizar barras de progreso
+            actualizarBarrasProgreso(produccion.total, distribucion);
+        }
+
+        /**
+         * Actualiza las barras de progreso de autoconsumo y excedentes
+         */
+        function actualizarBarrasProgreso(totalGenerado, distribucion) {
+            const autoconsumoPercent = totalGenerado > 0 ? 
+                (distribucion.autoconsumo / totalGenerado * 100) : 0;
+            const excedentesPercent = totalGenerado > 0 ? 
+                (distribucion.excedentes / totalGenerado * 100) : 0;
+
+            document.getElementById('autoconsumoPercent').textContent = autoconsumoPercent.toFixed(1) + '%';
+            document.getElementById('autoconsumoBar').style.width = autoconsumoPercent + '%';
+            document.getElementById('autoconsumoBar').textContent = autoconsumoPercent.toFixed(0) + '%';
+
+            document.getElementById('excedentesPercent').textContent = excedentesPercent.toFixed(1) + '%';
+            document.getElementById('excedentesBar').style.width = excedentesPercent + '%';
+            document.getElementById('excedentesBar').textContent = excedentesPercent.toFixed(0) + '%';
+        }
+
+        /**
+         * Anima la transición de valores numéricos
+         * @param {string} elementId - ID del elemento HTML
+         * @param {number} startValue - Valor inicial
+         * @param {number} targetValue - Valor final
+         */
+        function animateValue(elementId, startValue, targetValue) {
+            const element = document.getElementById(elementId);
+            const duration = CONFIG.ANIMATION_DURATION;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Easing function: easeOutQuart
+                const easeProgress = 1 - Math.pow(1 - progress, 4);
+                const currentValue = startValue + (targetValue - startValue) * easeProgress;
+                
+                element.textContent = currentValue.toFixed(0);
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        /**
+         * Actualiza la visualización de productores con imágenes
+         */
+        function updateProducersGrid() {
+            const container = document.getElementById('producersGrid');
+            container.innerHTML = '';
+
+            estadoActual.productores.forEach((prod, index) => {
+                const porcentaje = (prod.produccionActual / prod.capacidad * 100);
+                
+                const div = document.createElement('div');
+                div.className = `producer-card ${prod.tipo}`;
+                div.style.animationDelay = (index * 0.1) + 's';
+                
+                div.innerHTML = `
+                    <img src="${prod.imagen}" alt="${prod.nombre}" class="producer-image">
+                    <div class="producer-header">
+                        <div>
+                            <div class="producer-name">${prod.nombre}</div>
+                            <span class="producer-type-badge badge-${prod.tipo}">
+                                ${prod.tipo === 'solar' ? '☀️ Solar' : '💨 Eólica'}
+                            </span>
+                        </div>
+                        <div class="producer-icon ${prod.tipo}">
+                            ${prod.icon}
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85em; color: #888; margin-bottom: 10px;">
+                        ${prod.descripcion}
+                    </p>
+                    <div class="producer-stats">
+                        <div class="producer-stat">
+                            <div class="producer-stat-value">${prod.capacidad}</div>
+                            <div class="producer-stat-label">kW Capacidad</div>
+                        </div>
+                        <div class="producer-stat">
+                            <div class="producer-stat-value">${prod.produccionActual.toFixed(1)}</div>
+                            <div class="producer-stat-label">kWh Actual</div>
+                        </div>
+                        <div class="producer-stat">
+                            <div class="producer-stat-value">${porcentaje.toFixed(0)}%</div>
+                            <div class="producer-stat-label">Eficiencia</div>
+                        </div>
+                    </div>
+                    <div class="producer-progress">
+                        <div class="producer-progress-fill ${prod.tipo}" style="width: ${porcentaje}%"></div>
+                    </div>
+                `;
+                
+                container.appendChild(div);
+            });
+        }
+
+        /**
+         * Actualiza todos los gráficos con nuevos datos
+         */
+        function updateCharts(produccion, consumo, distribucion) {
+            const escenario = ESCENARIOS[estadoActual.escenario];
+            const factores = escenario.factores;
+
+            // Datos horarios simulados
+            const datosSolar = [0, 0, 80, 140, 100, 20, 0];
+            const datosEolica = [90, 110, 70, 60, 80, 100, 95];
+            const datosConsumo = [120, 100, 180, 220, 200, 280, 150];
+
+            // Actualizar gráfico de generación
+            estadoActual.charts.generation.data.datasets[0].data = 
+                datosSolar.map(v => v * factores.solar);
+            estadoActual.charts.generation.data.datasets[1].data = 
+                datosEolica.map(v => v * factores.eolica);
+            estadoActual.charts.generation.data.datasets[2].data = 
+                datosConsumo.map(v => v * factores.consumo);
+            estadoActual.charts.generation.update();
+
+            // Actualizar gráfico de distribución
+            estadoActual.charts.distribution.data.datasets[0].data = [
+                distribucion.autoconsumo,
+                distribucion.compartida,
+                distribucion.excedentes,
+                distribucion.importada
+            ];
+            estadoActual.charts.distribution.update();
+
+            // Actualizar gráfico de mix
+            estadoActual.charts.mix.data.datasets[0].data = [
+                produccion.solar,
+                produccion.eolica,
+                distribucion.importada
+            ];
+            estadoActual.charts.mix.update();
+
+            // Actualizar gráfico de autoconsumo
+            estadoActual.charts.selfConsumption.data.datasets[0].data = [
+                distribucion.autoconsumo,
+                distribucion.compartida,
+                distribucion.excedentes
+            ];
+            estadoActual.charts.selfConsumption.update();
+        }
+
+        // ============================================
+        // FUNCIONES DE CONTROL DE ESCENARIOS
+        // ============================================
+
+        /**
+         * Cambia el escenario de simulación
+         * @param {string} escenario - Clave del escenario
+         */
+        function changeScenario(escenario) {
+            estadoActual.escenario = escenario;
+            
+            // Actualizar botones activos
+            document.querySelectorAll('.scenario-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Actualizar sliders según el escenario
+            const factores = ESCENARIOS[escenario].factores;
+            document.getElementById('solarSlider').value = factores.solar * 100;
+            document.getElementById('windSlider').value = factores.eolica * 100;
+            document.getElementById('demandSlider').value = factores.consumo * 100;
+            
+            updateParameters();
+        }
+
+        /**
+         * Exporta datos actuales en formato JSON
+         */
+        function exportData() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                escenario: estadoActual.escenario,
+                productores: estadoActual.productores,
+                metricas: {
+                    totalGeneracion: document.getElementById('totalGeneracion').textContent,
+                    totalConsumo: document.getElementById('totalConsumo').textContent,
+                    energiaCompartida: document.getElementById('energiaCompartida').textContent,
+                    porcentajeRenovable: document.getElementById('porcentajeRenovable').textContent
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `comunidad_energetica_${new Date().getTime()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        /**
+         * Reinicia la simulación a valores iniciales
+         */
+        function resetSimulation() {
+            estadoActual.escenario = 'equilibrio';
+            document.getElementById('solarSlider').value = 70;
+            document.getElementById('windSlider').value = 50;
+            document.getElementById('demandSlider').value = 50;
+
+            document.querySelectorAll('.scenario-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const equilibrioBtn = document.querySelector('.btn-equilibrio');
+            if (equilibrioBtn) equilibrioBtn.classList.add('active');
+
+            updateParameters();
+        }
+
+        // ============================================
+        // INICIALIZACIÓN DE LA APLICACIÓN
+        // ============================================
+
+        /**
+         * Función principal de inicialización
+         * Se ejecuta cuando el DOM está completamente cargado
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            // Crear efectos visuales
+            createParticles();
+            
+            // Inicializar gráficos
+            initCharts();
+            
+            // Establecer escenario inicial
+            document.querySelector('.btn-equilibrio').classList.add('active');
+            
+            // Primera actualización
+            updateParameters();
+
+            // Actualización automática periódica
+            setInterval(() => {
+                const solarSlider = document.getElementById('solarSlider');
+                const windSlider = document.getElementById('windSlider');
+                
+                const solarCurrent = parseFloat(solarSlider.value);
+                const windCurrent = parseFloat(windSlider.value);
+                
+                // Variación aleatoria pequeña para simular realidad
+                const solarVariation = (Math.random() - 0.5) * 5;
+                const windVariation = (Math.random() - 0.5) * 5;
+                
+                const newSolar = Math.max(0, Math.min(100, solarCurrent + solarVariation));
+                const newWind = Math.max(0, Math.min(100, windCurrent + windVariation));
+                
+                solarSlider.value = newSolar;
+                windSlider.value = newWind;
+                
+                updateParameters();
+            }, CONFIG.UPDATE_INTERVAL);
+
+            console.log('✅ Sistema de Comunidad Energética inicializado correctamente');
+            console.log('📊 Proyecto Académico - Algoritmos y Programación 2026');
+        });
+    </script>
+</body>
+</html>
