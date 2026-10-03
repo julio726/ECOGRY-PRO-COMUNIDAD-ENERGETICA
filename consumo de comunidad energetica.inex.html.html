@@ -1782,3 +1782,65 @@ Porcentaje_Autoconsumo = (Autoconsumo / Generación_Total) × 100
     </script>
 </body>
 </html>
+// Función para enviar reporte
+async function enviarReporte() {
+    const email = prompt('juliodanielvidespayares2@gmail.com');
+    if (!email) return;
+    
+    // Obtener valores actuales de los controles
+    const parametros = {
+        solarIntensity: parseInt(document.getElementById('solarSlider').value),
+        windSpeed: parseInt(document.getElementById('windSlider').value),
+        demand: parseInt(document.getElementById('demandSlider').value)
+    };
+    
+    const metricas = {
+        generacion: document.getElementById('totalGeneracion').innerText,
+        consumo: document.getElementById('totalConsumo').innerText,
+        compartida: document.getElementById('energiaCompartida').innerText,
+        exportada: document.getElementById('energiaExportada').innerText,
+        porcentajeRenovable: document.getElementById('porcentajeRenovable').innerText,
+        balance: document.getElementById('balanceComunitario').innerText,
+        demandaCubierta: document.getElementById('demandaCubierta').innerText
+    };
+    
+    try {
+        const response = await fetch('http://localhost:3000/api/enviar-reporte', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email,
+                usuario: 'Usuario del Simulador',
+                tipoActividad: 'Simulación de Parámetros',
+                parametros: parametros,
+                metricas: metricas,
+                escenario: 'Personalizado'
+            })
+        });
+        
+        const resultado = await response.json();
+        
+        if (response.ok) {
+            alert(`✅ ¡Reporte enviado a ${email}!`);
+        } else {
+            alert(`❌ Error: ${resultado.error}`);
+        }
+    } catch (error) {
+        alert(`Error de conexión: ${error.message}`);
+    }
+}
+
+// Botón para enviar reporte
+window.addEventListener('DOMContentLoaded', () => {
+    const btnReporte = document.createElement('button');
+    btnReporte.className = 'btn btn-secondary';
+    btnReporte.innerHTML = '📧 Enviar Reporte por Email';
+    btnReporte.onclick = enviarReporte;
+    
+    const actionButtons = document.querySelector('.action-buttons');
+    if (actionButtons) {
+        actionButtons.appendChild(btnReporte);
+    }
+});
